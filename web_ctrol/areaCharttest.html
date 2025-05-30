@@ -1,0 +1,214 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stepper Device Control</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <style>
+        .navbar {
+            background-color: #6c757d;
+            padding: 10px;
+        }
+        .navbar-brand {
+            font-size: 1.7rem;
+            font-weight: bold;
+            color: white;
+        }
+        .add-button {
+            margin-left: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .add-button:hover {
+            background-color: #218838;
+        }
+        .slider {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .slider-value {
+            margin-left: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">I - Soft</a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div id="chartContainer" style="height: 370px; width: 100%;"></div>
+
+        <h3 class="mt-4">Time Control</h3>
+        <div class="row">
+            <div class="col-md-6">
+                <label for="StepSelect">Select Step:</label>
+                <select id="StepSelect" class="form-select">
+                    <option value="0">Step 1</option>
+                    <option value="1">Step 2</option>
+                    <option value="2">Step 3</option>
+                    <option value="3">Step 4</option>
+                    <option value="4">Step 5</option>
+                    <option value="5">Step 6</option>
+                    <option value="6">Step 7</option>
+                    <option value="7">Step 8</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <button id="addStepButton" class="btn btn-success mt-3">Add Step</button>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <label for="TimeSelect">Select Time:</label>
+                <select id="TimeSelect" class="form-select">
+                    <option value="0">Time 1</option>
+                    <option value="1">Time 2</option>
+                    <option value="2">Time 3</option>
+                    <option value="3">Time 4</option>
+                    <option value="4">Time 5</option>
+                    <option value="5">Time 6</option>
+                    <option value="6">Time 7</option>
+                    <option value="7">Time 8</option>
+                    <option value="8">Time 9</option>
+                    <option value="9">Time 10</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <button id="addTimeButton" class="btn btn-success mt-3">Add Time</button>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <label>Min Degree: <input type="number" id="minDegreeInput" value="0" step="0.1" class="form-control d-inline w-auto"></label>
+            <label>Max Degree: <input type="number" id="maxDegreeInput" value="360" step="0.1" class="form-control d-inline w-auto"></label>
+            <label>Degree: <span id="sliderValue" class="slider-value">5</span></label>
+            <input type="range" min="0" max="360" value="0" step="0.1" class="slider" id="mainSlider">
+        </div>
+
+        <button id="exportButton" class="btn btn-primary mt-3">Export Data to Terminal</button>
+    </div>
+
+    <footer class="bg-dark text-white text-center py-3 mt-4">
+        <p>&copy; 2024 I-Soft. All rights reserved.</p>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.min.js"></script>
+    <script src="https://cdn.canvasjs.com/canvasjs.min.js"></script>
+    <script>
+        window.onload = function () {
+            let stepCount = 8;
+            let timeCount = 10;
+
+            const initialData = {
+                "Step 1": [2.22, 2.20, 2.44, 2.45, 2.58, 2.44, 2.40, 2.72, 2.66, 3.04],
+                "Step 2": [3.86, 3.76, 3.77, 3.65, 3.90, 3.88, 3.69, 3.86, 3.38, 4.20],
+                "Step 3": [4.37, 4.27, 4.72, 4.87, 5.35, 5.50, 4.84, 4.13, 5.22, 5.39],
+                "Step 4": [6.64, 6.31, 6.59, 6.95, 7.16, 6.40, 7.20, 7.17, 6.95, 7.09],
+                "Step 5": [8.00, 6.81, 6.71, 6.82, 6.56, 6.24, 5.40, 7.01, 7.14, 8.11],
+                "Step 6": [7.94, 7.29, 7.28, 7.82, 7.89, 6.71, 7.80, 7.60, 7.66, 8.89],
+                "Step 7": [10.11, 9.27, 9.25, 10.17, 10.72, 10.24, 12.07, 7.60, 7.66, 8.89],
+                "Step 8": [11.76, 10.29, 12.02, 11.80, 12.48, 13.61, 12.07, 7.60, 7.66, 8.89]
+            };
+
+            var chart = new CanvasJS.Chart("chartContainer", {
+                theme: "light2",
+                animationEnabled: true,
+                zoomEnabled: true,
+                title: {
+                    text: "Stepper Device"
+                },
+                axisY: {
+                    title: "Number of Viewers",
+                    suffix: ""
+                },
+                data: []
+            });
+
+            function updateChart() {
+                chart.options.data = [];
+                let stepCount = Object.keys(initialData).length;
+                let timeCount = initialData["Step 1"].length;
+
+                for (let i = 1; i <= stepCount; i++) {
+                    const StepData = initialData[`Step ${i}`].map((value, index) => ({
+                        label: `Time ${index + 1}`,
+                        y: value
+                    }));
+
+                    chart.options.data.push({
+                        type: "line",
+                        visible: true,
+                        showInLegend: true,
+                        name: `Step ${i}`,
+                        dataPoints: StepData
+                    });
+                }
+
+                chart.render();
+            }
+
+            updateChart();
+
+            const slider = document.getElementById("mainSlider");
+            const sliderValue = document.getElementById("sliderValue");
+            const TimeSelect = document.getElementById("TimeSelect");
+            const StepSelect = document.getElementById("StepSelect");
+            const addStepButton = document.getElementById("addStepButton");
+            const addTimeButton = document.getElementById("addTimeButton");
+
+            addStepButton.addEventListener('click', function () {
+                stepCount++;
+                const option = document.createElement("option");
+                option.value = stepCount - 1;
+                option.text = `Step ${stepCount}`;
+                StepSelect.add(option);
+                initialData[`Step ${stepCount}`] = Array(timeCount).fill(5);
+                updateChart();
+            });
+
+            addTimeButton.addEventListener('click', function () {
+                const timeCount = initialData["Step 1"].length + 1;
+                Object.keys(initialData).forEach(step => {
+                    initialData[step].push(5);
+                });
+                updateChart();
+            });
+
+            slider.oninput = function () {
+                const value = parseFloat(this.value);
+                sliderValue.textContent = value.toFixed(2);
+
+                const selectedTime = parseInt(TimeSelect.value);
+                const selectedStep = parseInt(StepSelect.value);
+
+                initialData[`Step ${selectedStep + 1}`][selectedTime] = value;
+                updateChart();
+            };
+
+            const exportButton = document.getElementById("exportButton");
+            exportButton.addEventListener('click', function () {
+                const data = Object.keys(initialData).map(step => ({
+                    Step: step,
+                    Times: initialData[step]
+                }));
+
+                console.log('Exported Data:');
+                data.forEach(stepData => {
+                    console.log(`${stepData.Step}:`, stepData.Times);
+                });
+            });
+        };
+    </script>
+</body>
+</html>

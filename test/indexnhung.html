@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sensor Data Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f0f0f0;
+        }
+        #sensorData {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        #connectionStatus {
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        /* Thêm style cho bảng */
+        .modbus-table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+            background-color: white;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .modbus-table th, .modbus-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .modbus-table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+        .modbus-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .modbus-table tr:hover {
+            background-color: #f1f1f1;
+        }
+              
+    </style>
+</head>
+<body onload="phuong()">
+    <h1>CONTROLL STEPPER </h1>
+    <div id="connectionStatus">Connecting...</div>
+    <div id="sensorData">
+        <!-- <div class="data-row">
+            <strong>Sensor ID:</strong> 
+            <span id="ssid">-</span>
+        </div>
+        <div class="data-row">
+            <strong>Temperature (C):</strong> 
+            <span id="docC">-</span>
+        </div>
+        <div class="data-row">
+            <strong>Temperature (F):</strong> 
+            <span id="dof">-</span>
+        </div>
+        <div class="data-row">
+            <strong>Date:</strong> 
+            <span id="date">-</span>
+        </div>
+        <div class="data-row">
+            <strong>CRC:</strong> 
+            <span id="clc">-</span>
+        </div> -->
+
+        <!-- Thêm bảng Modbus Data -->
+        <div>
+            <h2>Stepper Data</h2>
+            <p>From</p>
+            <input type="text" id="from" value="0" >
+            <p>To</p>
+            <!-- <input type="text" id="to" value="" onchange="Caculator()"> -->
+            <input type="text" id="to" value="2100" >
+            <p>Set PRM</p>
+            <input type="text" id="Set_PRM" value="20" >
+
+            <p>Type</p>
+            <input type="text" id="type" value="0" >
+
+            <button id = "Load" onclick="LoadData()">Load</button>
+
+            <div id="nutnhan"></div>
+
+            <div id="HOME"></div>
+
+            <!-- <p>Value:</p>
+            <div id="ShowValue"></div>
+            <p>Value1:</p>
+            <div id="ShowValue1"></div>
+            <p>Value2:</p>
+            <div id="ShowValue2"></div>
+            <p>Value3:</p>
+            <div id="ShowValue3"></div>
+            <p>Value4:</p>
+            <div id="ShowValue4"></div>
+            <p>Value5:</p>
+            <div id="ShowValue5"></div>
+            <p>Value6:</p>
+            <div id="ShowValue6"></div>
+            <p>Value7:</p>
+            <div id="ShowValue7"></div> -->
+            
+            <div id="motorData">
+
+        <div class="data-row">
+            <strong>Steps Completed:</strong>
+            <span id="steps_completed">-</span>
+        </div>
+        <div class="data-row">
+            <strong>Current Angle:</strong>
+            <span id="current_angle">-</span>
+        </div>
+        <div class="data-row">
+            <strong>Direction:</strong>
+            <span id="direction">-</span>
+        </div>
+        <div class="data-row">
+            <strong>Current RPM:</strong>
+            <span id="current_rpm">-</span>
+        </div>
+        <div class="data-row">
+            <strong>Target RPM:</strong>
+            <span id="target_rpm">-</span>
+        </div>
+        <div class="data-row">
+            <strong>From Step:</strong>
+            <span id="from_step">-</span>
+        </div>
+        <div class="data-row">
+            <strong>To Step:</strong>
+            <span id="to_step">-</span>
+        </div>
+        <div class="data-row">
+            <strong>Motor Steps:</strong>
+            <span id="motor_steps">-</span>
+        </div>
+        <div class="data-row">
+            <strong>Microsteps:</strong>
+            <span id="microsteps">-</span>
+        </div>
+        <div>
+            <strong>Progress:</strong>
+            <div class="progress-bar">
+                <div id="progressBar" class="progress"></div>
+            </div>
+        </div>
+    </div>
+
+
+            <input type="text" id="searchInput" placeholder="Search...">
+
+            <table class="modbus-table">
+                <thead>
+                    <tr>
+                        <th>Register</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody id="modbusTableBody">
+                    <!-- Dữ liệu sẽ được thêm vào đây bằng JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const connectionStatus = document.getElementById('connectionStatus');
+        // const ssidElement = document.getElementById('ssid');
+        // const docCElement = document.getElementById('docC');
+        // const dofElement = document.getElementById('dof');
+        // const dateElement = document.getElementById('date');
+        // const clcElement = document.getElementById('clc');
+
+        // const valueElement = document.getElementById('ShowValue');
+        // const valueElement1 = document.getElementById('ShowValue1');
+        // const valueElement2 = document.getElementById('ShowValue2');
+        // const valueElement3 = document.getElementById('ShowValue3');
+        // const valueElement4 = document.getElementById('ShowValue4');
+        // const valueElement5 = document.getElementById('ShowValue5');
+        // const valueElement6 = document.getElementById('ShowValue6');
+        // const valueElement7 = document.getElementById('ShowValue7');
+        
+        const valueElement = document.getElementById('steps_completed');
+        const valueElement1 = document.getElementById('current_angle');
+        const valueElement2 = document.getElementById('direction');
+        const valueElement3 = document.getElementById('target_rpm');
+        const valueElement4 = document.getElementById('from_step');
+        const valueElement5 = document.getElementById('to_step');
+        const valueElement6 = document.getElementById('motor_steps');
+        const valueElement7 = document.getElementById('microsteps');
+
+
+
+        const modbusTableBody = document.getElementById('modbusTableBody');
+        const searchInput = document.getElementById('searchInput');
+        // const socket = new WebSocket(`ws:/192.168.0.103/ws`);
+        const socket = new WebSocket(`ws:/192.168.1.206/ws`);
+
+        socket.onopen = function(e) {
+            connectionStatus.textContent = 'Connected';
+            connectionStatus.style.color = 'green';
+        };
+
+        // socket.onmessage = function(event) {
+        //     try {
+        //         const data = JSON.parse(event.data);
+        
+     
+        // document.getElementById('steps_completed').textContent = data.steps_completed;
+        // document.getElementById('current_angle').textContent = data.current_angle + '°';
+        // document.getElementById('direction').textContent = data.direction === 1 ? 'Forward' : 'Reverse';
+        // document.getElementById('current_rpm').textContent = data.current_rpm.toFixed(2);
+        // document.getElementById('target_rpm').textContent = data.target_rpm;
+        // document.getElementById('from_step').textContent = data.from_step;
+        // document.getElementById('to_step').textContent = data.to_step;
+        // document.getElementById('motor_steps').textContent = data.motor_steps;
+        // document.getElementById('microsteps').textContent = data.microsteps;
+
+ 
+        // const progress = (data.steps_completed / data.motor_steps) * 100;
+        // document.getElementById('progressBar').style.width = progress + '%';
+
+
+        //     } catch (error) {
+        //         console.error('Error parsing data:', error);
+        //         console.log('Raw data:', event.data);
+        //     }
+        // };
+
+        socket.onclose = function(event) {
+            connectionStatus.textContent = 'Disconnected';
+            connectionStatus.style.color = 'red';
+        };
+
+        socket.onerror = function(error) {
+            console.error('WebSocket Error:', error);
+            connectionStatus.textContent = 'Connection Error';
+            connectionStatus.style.color = 'red';
+        };
+        function filterTable(searchTerm) {
+            const rows = modbusTableBody.getElementsByTagName('tr');
+            
+            for (let row of rows) {
+                const registerCell = row.getElementsByTagName('td')[0];
+                const valueCell = row.getElementsByTagName('td')[1];
+                
+                const registerText = registerCell.textContent.toLowerCase();
+                const valueText = valueCell.textContent.toLowerCase();
+
+                if (registerText.includes(searchTerm) || valueText.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+        }
+
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.trim().toLowerCase();
+            filterTable(searchTerm);
+        });
+        function phuong(){
+            setInterval(LoadData,5000);
+            // setTimeout (LoadData,3000);
+                var html = "";
+                for(var i = 0 ; i < 1 ;i++){
+                html += " <button  onclick=\"Bnt("+i+")\">Relay"+i+"</button>";
+             }
+             document.getElementById("HOME").innerHTML = html;
+             var html = "";
+                for(var i = 0 ; i < 1 ;i++){
+                html += " <button  onclick=\"HOME("+i+")\">HOME"+i+"</button>";
+             }
+             document.getElementById("HOME").innerHTML = html;
+        }
+        var state=[0,0,0,0,0,0,0,0,0];
+        function Bnt(Rl){
+            console.log("Relay: " +Rl + " State: " + state[Rl]);
+            if(state[Rl] == 1){state[Rl] = 0;}else{state[Rl] = 1;}
+            socket.send("{\"CMD\":\"relay\",\"ID\":" + Rl + ",\"value\":" + state[Rl] + "}")
+            
+        }
+        function HOME(H1){
+            console.log("HOME: " +H1 + " State: " + state[H1]);
+            if(state[H1] == 1){state[H1] = 0;}else{state[H1] = 1;}
+            socket.send("{\"CMD\":\"home\",\"ID\":" + H1 + ",\"value\":" + state[H1] + "}")
+            
+        }
+        
+
+        function LoadData(){
+            console.log("Loaddatas");
+            var Set_PRM = document.getElementById("Set_PRM").value;
+            var from = document.getElementById("from").value;
+            var to = document.getElementById("to").value;
+            var type = document.getElementById("type").value;
+            var msg = "";
+            socket.send("{\"CMD\":\"get\",\"Set_PRM\":"+Set_PRM+",\"from\":"+from+",\"to\":"+to+",\"type\":"+type+"}");
+        }
+        // function Caculator(){
+        //     if(document.getElementById("to").value > 50){
+        //         document.getElementById("from").value = document.getElementById("to").value - 50; 
+        //     }
+        //     else{
+        //         document.getElementById("to").value = 0;
+        //     }
+        // }
+    </script>
+</body>
+</html>

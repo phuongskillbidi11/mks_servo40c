@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"path": "D:/Zalo/messger/Zalo Received Files/14-026h16"
+		},
+		{
+			"path": "D:/Zalo/messger/Zalo Received Files/17-02"
+		},
+		{
+			"path": "D:/Download/New folder (6)"
+		},
+		{
+			"path": "../../SPI_CC"
+		},
+		{
+			"path": "C:/Users/ADMIN/Desktop/PLC_S7-1200/plc-backend"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "plc-backend",
+		"files.associations": {
+			"freertos.h": "c"
+		}
+	}
+}
