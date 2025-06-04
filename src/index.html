@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collapsible Sidebar</title>
+    <link rel="stylesheet" href="src/css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2><i class="fas fa-circle-notch"></i></h2>
+            <div class="toggle-btn" onclick="toggleSidebar()">
+                <i class="fas fa-chevron-left"></i>
+            </div>
+        </div>
+        <ul class="nav">
+            <li class="active"><a href="#"><i class="fas fa-th"></i><span>Dashboard</span></a></li>
+            <li><a href="#"><i class="fas fa-calendar-alt"></i><span>Calendar</span></a></li>
+            <li><a href="#"><i class="fas fa-bell"></i><span>Notifications</span></a></li>
+            <li><a href="#"><i class="fas fa-chart-bar"></i><span>Analytics</span></a></li>
+            <li><a href="#"><i class="fas fa-star"></i><span>Bookmarks</span></a></li>
+            <li><a href="#"><i class="fas fa-cog"></i><span>Settings INF</span></a></li>
+            <li><a href="#"><i class="fas fa-user"></i><span>Profile</span></a></li>
+            <li><a href="#"><i class="fas fa-sign-out-alt"></i><span>Logout</span></a></li>
+        </ul>
+    </div>
+    <div class="main-content">
+        <h1>Dashboard Content</h1>
+        <p>This is the main content area of the dashboard.</p>
+    </div>
+    <script src="src/js/script.js"></script>
+
+    <script src="src/PMS/dashboard.js"></script>
+    <script src="src/PMS/utils.js"></script>
+    
+</body>
+</html>
