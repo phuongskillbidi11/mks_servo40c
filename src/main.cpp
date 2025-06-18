@@ -419,7 +419,8 @@ void loop() {
 
 #endif // rotation_feedback_OK
 
-
+// int currentMotorIndex = 0; 
+OperationMode currentMode = MODE_CUSTOM_ROTATION;
 
 // FreeRTOS handles
 TaskHandle_t motorControlTaskHandle = NULL;
@@ -659,6 +660,98 @@ void safePrintln(const char* message) {
     xSemaphoreGive(serialMutex);
   }
 }
+void startRotation() {
+  if (customRotation.sequentialMode) {
+   
+    safePrintln("Starting sequential rotation...");
+    currentMotorIndex = 0;
+    
+    for (int i = 0; i < 3; i++) {
+      steppers[i].disable();
+    }
+    
+    steppers[currentMotorIndex].enable();
+    
+    float angle = 0;
+    switch(currentMotorIndex) {
+      case 0: angle = customRotation.angleX; break;
+      case 1: angle = customRotation.angleY; break;
+      case 2: angle = customRotation.angleZ; break;
+    }
+    
+    steppers[currentMotorIndex].rotate(angle);
+    
+    if (xSemaphoreTake(serialMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+      Serial.print("Starting Motor ");
+      Serial.print(currentMotorIndex == 0 ? "X" : currentMotorIndex == 1 ? "Y" : "Z");
+      Serial.print(" - ");
+      Serial.print(angle);
+      Serial.println("°");
+      xSemaphoreGive(serialMutex);
+    }
+  } else {
+
+    safePrintln("Starting simultaneous rotation...");
+    
+    for (int i = 0; i < 3; i++) {
+      steppers[i].enable();
+    }
+    
+    controller.rotate(customRotation.angleX, customRotation.angleY, customRotation.angleZ);
+    
+    if (xSemaphoreTake(serialMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+      Serial.print("All motors rotating - X:");
+      Serial.print(customRotation.angleX);
+      Serial.print("° Y:");
+      Serial.print(customRotation.angleY);
+      Serial.print("° Z:");
+      Serial.print(customRotation.angleZ);
+      Serial.println("°");
+      xSemaphoreGive(serialMutex);
+    }
+  }
+}
+
+void checkSequentialProgress() {
+  if (!customRotation.sequentialMode) return;
+  
+  if (steppers[currentMotorIndex].getStepsRemaining() == 0) {
+    steppers[currentMotorIndex].disable();
+    
+    if (xSemaphoreTake(serialMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+      Serial.print("Motor ");
+      Serial.print(currentMotorIndex == 0 ? "X" : currentMotorIndex == 1 ? "Y" : "Z");
+      Serial.println(" completed!");
+      xSemaphoreGive(serialMutex);
+    }
+    
+    currentMotorIndex++;
+    
+    if (currentMotorIndex < 3) {
+      vTaskDelay(pdMS_TO_TICKS(500));
+      
+      steppers[currentMotorIndex].enable();
+      
+      float angle = 0;
+      switch(currentMotorIndex) {
+        case 0: angle = customRotation.angleX; break;
+        case 1: angle = customRotation.angleY; break;
+        case 2: angle = customRotation.angleZ; break;
+      }
+      
+      steppers[currentMotorIndex].rotate(angle);
+      
+      if (xSemaphoreTake(serialMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        Serial.print("Starting Motor ");
+        Serial.print(currentMotorIndex == 0 ? "X" : currentMotorIndex == 1 ? "Y" : "Z");
+        Serial.print(" - ");
+        Serial.print(angle);
+        Serial.println("°");
+        xSemaphoreGive(serialMutex);
+      }
+    }
+  }
+}
 
 // FreeRTOS Tasks
 void motorControlTask(void* parameter) {
@@ -666,24 +759,51 @@ void motorControlTask(void* parameter) {
   bool allDone = false;
   
   while (true) {
-    unsigned wait_time = controller.nextAction();
+    unsigned wait_time;
+    
+    if (customRotation.sequentialMode) {
+      if (currentMotorIndex < 3) {
+        wait_time = steppers[currentMotorIndex].nextAction();
+        checkSequentialProgress();
+      } else {
+        wait_time = 0;
+      }
+    } else {
+      wait_time = controller.nextAction();
+    }
     
     if (wait_time) {
-      // Motors are running
       if ((xTaskGetTickCount() - lastPrintTime) >= pdMS_TO_TICKS(PRINT_INTERVAL)) {
-        for (int i = 0; i < 3; i++) {
-          if (steppers[i].getStepsRemaining()) {
+        if (customRotation.sequentialMode) {
+          if (currentMotorIndex < 3 && steppers[currentMotorIndex].getStepsRemaining()) {
             if (xSemaphoreTake(serialMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
               Serial.print("Motor ");
-              Serial.print(i == 0 ? "X" : i == 1 ? "Y" : "Z");
+              Serial.print(currentMotorIndex == 0 ? "X" : currentMotorIndex == 1 ? "Y" : "Z");
               Serial.print(": ");
-              Serial.print(steppers[i].getStepsCompleted());
+              Serial.print(steppers[currentMotorIndex].getStepsCompleted());
               Serial.print("/");
-              Serial.print(steppers[i].getStepsCompleted() + steppers[i].getStepsRemaining());
+              Serial.print(steppers[currentMotorIndex].getStepsCompleted() + steppers[currentMotorIndex].getStepsRemaining());
               Serial.print(" steps, ");
-              Serial.print(steppers[i].getCurrentRPM(), 1);
+              Serial.print(steppers[currentMotorIndex].getCurrentRPM(), 1);
               Serial.println(" RPM");
               xSemaphoreGive(serialMutex);
+            }
+          }
+        } else {
+          for (int i = 0; i < 3; i++) {
+            if (steppers[i].getStepsRemaining()) {
+              if (xSemaphoreTake(serialMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+                Serial.print("Motor ");
+                Serial.print(i == 0 ? "X" : i == 1 ? "Y" : "Z");
+                Serial.print(": ");
+                Serial.print(steppers[i].getStepsCompleted());
+                Serial.print("/");
+                Serial.print(steppers[i].getStepsCompleted() + steppers[i].getStepsRemaining());
+                Serial.print(" steps, ");
+                Serial.print(steppers[i].getCurrentRPM(), 1);
+                Serial.println(" RPM");
+                xSemaphoreGive(serialMutex);
+              }
             }
           }
         }
@@ -692,14 +812,18 @@ void motorControlTask(void* parameter) {
       allDone = false;
     } 
     else if (!allDone) {
-      // Motors finished
       for (int i = 0; i < 3; i++) {
         steppers[i].disable();
       }
-      safePrintln("\n=== All motors stopped ===");
-      allDone = true;
       
-      // Start restart timer
+      if (customRotation.sequentialMode) {
+        safePrintln("\n=== All motors completed sequentially ===");
+        currentMotorIndex = 0;
+      } else {
+        safePrintln("\n=== All motors stopped simultaneously ===");
+      }
+      
+      allDone = true;
       xTimerStart(restartTimer, 0);
     }
     
@@ -810,22 +934,149 @@ void serialPrintTask(void* parameter) {
     }
   }
 }
+void parseAngleCommand(String command) {
+  command = command.substring(6);
+  command.trim();
+  
+  if (command.indexOf('X') >= 0) {
+    int xPos = command.indexOf('X');
+    int yPos = command.indexOf('Y');
+    int zPos = command.indexOf('Z');
+    
+    if (xPos >= 0) {
+      String xStr = command.substring(xPos + 2, yPos > 0 ? yPos - 1 : command.length());
+      customRotation.angleX = xStr.toFloat();
+    }
+    if (yPos >= 0) {
+      String yStr = command.substring(yPos + 2, zPos > 0 ? zPos - 1 : command.length());
+      customRotation.angleY = yStr.toFloat();
+    }
+    if (zPos >= 0) {
+      String zStr = command.substring(zPos + 2);
+      customRotation.angleZ = zStr.toFloat();
+    }
+  } else {
+    int firstSpace = command.indexOf(' ');
+    int secondSpace = command.indexOf(' ', firstSpace + 1);
+    
+    if (firstSpace > 0) {
+      customRotation.angleX = command.substring(0, firstSpace).toFloat();
+      if (secondSpace > 0) {
+        customRotation.angleY = command.substring(firstSpace + 1, secondSpace).toFloat();
+        customRotation.angleZ = command.substring(secondSpace + 1).toFloat();
+      }
+    }
+  }
+  
+  if (xSemaphoreTake(serialMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+    Serial.print("New angles set - X:");
+    Serial.print(customRotation.angleX);
+    Serial.print("° Y:");
+    Serial.print(customRotation.angleY);
+    Serial.print("° Z:");
+    Serial.print(customRotation.angleZ);
+    Serial.println("°");
+    xSemaphoreGive(serialMutex);
+  }
+}
+void printHelp() {
+  if (xSemaphoreTake(serialMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+    Serial.println("\n=== AVAILABLE COMMANDS ===");
+    Serial.println("SEQUENTIAL or SEQ - Switch to sequential mode");
+    Serial.println("SIMULTANEOUS or SIM - Switch to simultaneous mode");
+    Serial.println("START - Start rotation with current settings");
+    Serial.println("STOP - Stop all motors");
+    Serial.println("ANGLE X:90 Y:180 Z:270 - Set custom angles");
+    Serial.println("ANGLE 90 180 270 - Set custom angles (alternative format)");
+    Serial.println("STATUS - Show current status");
+    Serial.println("HELP - Show this help");
+    Serial.println("=========================");
+    xSemaphoreGive(serialMutex);
+  }
+}
+void printCurrentStatus() {
+  if (xSemaphoreTake(serialMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+    Serial.println("\n=== CURRENT STATUS ===");
+    Serial.print("Mode: ");
+    Serial.println(customRotation.sequentialMode ? "SEQUENTIAL" : "SIMULTANEOUS");
+    Serial.print("Angles - X:");
+    Serial.print(customRotation.angleX);
+    Serial.print("° Y:");
+    Serial.print(customRotation.angleY);
+    Serial.print("° Z:");
+    Serial.print(customRotation.angleZ);
+    Serial.println("°");
+    
+    if (customRotation.sequentialMode) {
+      Serial.print("Current motor index: ");
+      Serial.println(currentMotorIndex);
+    }
+    
+    for (int i = 0; i < 3; i++) {
+      Serial.print("Motor ");
+      Serial.print(i == 0 ? "X" : i == 1 ? "Y" : "Z");
+      Serial.print(" - Steps remaining: ");
+      Serial.println(steppers[i].getStepsRemaining());
+    }
+    Serial.println("=====================");
+    xSemaphoreGive(serialMutex);
+  }
+}
+void processSerialCommand() {
+  if (Serial.available()) {
+    String command = Serial.readStringUntil('\n');
+    command.trim();
+    command.toUpperCase();
+    
+    if (command == "SEQUENTIAL" || command == "SEQ") {
+      customRotation.sequentialMode = true;
+      safePrintln("Switched to SEQUENTIAL mode");
+    }
+    else if (command == "SIMULTANEOUS" || command == "SIM") {
+      customRotation.sequentialMode = false;
+      safePrintln("Switched to SIMULTANEOUS mode");
+    }
+    else if (command == "START") {
+      for (int i = 0; i < 3; i++) {
+        steppers[i].stop();
+        steppers[i].disable();
+      }
+      vTaskDelay(pdMS_TO_TICKS(100));
+      startRotation();
+    }
+    else if (command == "STOP") {
+      for (int i = 0; i < 3; i++) {
+        steppers[i].stop();
+        steppers[i].disable();
+      }
+      safePrintln("All motors stopped");
+    }
+    else if (command.startsWith("ANGLE")) {
+      parseAngleCommand(command);
+    }
+    else if (command == "STATUS") {
+      printCurrentStatus();
+    }
+    else if (command == "HELP") {
+      printHelp();
+    }
+  }
+}
 
 // Timer callback for restart
+
 void restartTimerCallback(TimerHandle_t xTimer) {
   safePrintln("\n=== Restarting rotation ===");
-  
-  for (int i = 0; i < 3; i++) {
-    steppers[i].enable();
-  }
-  controller.rotate(ROTATION_ANGLE, ROTATION_ANGLE, ROTATION_ANGLE);
+  startRotation();
 }
 
 void setup() {
   Serial.begin(SERIAL_BAUD);
   Serial2.begin(SERIAL2_BAUD, SERIAL_8N1, RX_PIN, TX_PIN);
 
-  // Initialize steppers
+  // Sử dụng currentMode từ config.h
+  currentMode = MODE_CUSTOM_ROTATION;
+
   for (int i = 0; i < 3; i++) {
     steppers[i].begin(motorConfigs[i].rpm, MICROSTEPS);
     steppers[i].setEnableActiveState(LOW);
@@ -833,7 +1084,6 @@ void setup() {
     steppers[i].setSpeedProfile(steppers[i].LINEAR_SPEED, 1000, 2000);
   }
 
-  // Create FreeRTOS objects
   serial2Mutex = xSemaphoreCreateMutex();
   serialMutex = xSemaphoreCreateMutex();
   feedbackQueue = xQueueCreate(10, sizeof(FeedbackData));
@@ -847,37 +1097,68 @@ void setup() {
   }
 
   Serial.println("START - 3 motors ready");
-  Serial.println("Resetting encoders...");
+  Serial.print("Mode: ");
+  Serial.println(customRotation.sequentialMode ? "SEQUENTIAL" : "SIMULTANEOUS");
   
-  // Reset encoders - Fixed command code based on config
+  printHelp();
+  
+  Serial.println("Resetting encoders...");  
   for (int i = 0; i < 3; i++) {
-    // Use SET_ZERO_POINT instead of wrong RESET_ENCODER
     sendCommandWithParam(motorConfigs[i].address, 0x91, 0x00);
     vTaskDelay(pdMS_TO_TICKS(COMMAND_DELAY));
   }
 
   Serial.println("Setting CR_vFOC mode...");
   for (int i = 0; i < 3; i++) {
-    // Set work mode to CR_vFOC (mode 2)
     sendCommandWithParam(motorConfigs[i].address, SET_CR_VFOC, 0x02);
     vTaskDelay(pdMS_TO_TICKS(COMMAND_DELAY));
   }
 
   Serial.println("Starting rotation...");
-  controller.rotate(ROTATION_ANGLE, ROTATION_ANGLE, ROTATION_ANGLE);
+  startRotation();
+    xTaskCreatePinnedToCore(
+    motorControlTask,
+    "MotorControl",
+    4096,
+    NULL,
+    2,
+    &motorControlTaskHandle,
+    1
+  );
 
-  // Create tasks
-  xTaskCreatePinnedToCore(motorControlTask, "MotorControl", 4096, NULL, 2, 
-                         &motorControlTaskHandle, 1);
-  xTaskCreatePinnedToCore(uartFeedbackTask, "UARTFeedback", 4096, NULL, 2, 
-                         &uartFeedbackTaskHandle, 0);
-  xTaskCreatePinnedToCore(serialPrintTask, "SerialPrint", 2048, NULL, 1, 
-                         &serialPrintTaskHandle, 0);
+  xTaskCreatePinnedToCore(
+    uartFeedbackTask,
+    "UartFeedback",
+    4096,
+    NULL,
+    1,
+    &uartFeedbackTaskHandle,
+    0
+  );
 
-  Serial.println("FreeRTOS tasks started!");
+  xTaskCreatePinnedToCore(
+    serialPrintTask,
+    "SerialPrint",
+    4096,
+    NULL,
+    1,
+    &serialPrintTaskHandle,
+    0
+  );
+
+  if (motorControlTaskHandle == NULL || uartFeedbackTaskHandle == NULL || 
+      serialPrintTaskHandle == NULL) {
+    Serial.println("Failed to create tasks!");
+    while(1);
+  }
+
+  Serial.println("All tasks created successfully!");
 }
 
 void loop() {
-  // Empty - all work done by FreeRTOS tasks
-  vTaskDelay(pdMS_TO_TICKS(1000));
+  // Xử lý lệnh từ Serial Monitor
+  processSerialCommand();
+  
+  // Delay nhỏ để tránh watchdog reset
+  vTaskDelay(pdMS_TO_TICKS(50));
 }

@@ -179,6 +179,7 @@ void loop() {
   static bool allDone = false;
   static unsigned long lastTime = 0;
   static unsigned long lastFeedbackTime = 0;
+  static bool forwardDirection = true; // Biến theo dõi hướng quay
 
   if (millis() - lastFeedbackTime >= FEEDBACK_INTERVAL) {
     Serial.println("\n=== READING FEEDBACK ===");
@@ -227,8 +228,13 @@ void loop() {
     lastTime = millis();
   }
 
-  if (allDone && (millis() - lastTime > RESTART_DELAY)) {
+if (allDone && (millis() - lastTime > RESTART_DELAY)) {
+    forwardDirection = !forwardDirection;
+    ROTATION_ANGLE = forwardDirection ? 360.0 : -360.0;
+    
     Serial.println("\n=== Restarting rotation ===");
+    Serial.print("Direction: ");
+    Serial.println(forwardDirection ? "Forward" : "Reverse");
     allDone = false;
     for (int i = 0; i < 3; i++) {
       steppers[i].enable();
